@@ -16,8 +16,10 @@ def filter_telnet_client(handler):
 
 @filter_telnet_client
 def handler(pkt):
-    # TODO
-    pass
+    will_terminal_type = bytes([0xff, 0xfb, 0x18])
+    if pkt[Raw].load == will_terminal_type:
+        # TODO reset buffer
+        pass
 
 if __name__ == '__main__':
     iface = sys.argv[1] if len(sys.argv) > 1 else None

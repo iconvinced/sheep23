@@ -7,10 +7,17 @@ from scapy.all import *
 Ether.tcp_flow_id = lambda self:\
     "{}:{}_{}:{}".format(self[IP].src, self[TCP].sport, self[IP].dst, self[TCP].dport) if (IP in self and TCP in self) else ""
 
+def filter_telnet_client(handler):
+    def _(pkt):
+        if TCP in pkt and pkt[TCP].dport == 23 and Raw in pkt[TCP]:
+            return handler(pkt)
+
+    return _
+
+@filter_telnet_client
 def handler(pkt):
-    if TCP in pkt and pkt[TCP].dport == 23 and Raw in pkt[TCP]:
-        # TODO
-        pass
+    # TODO
+    pass
 
 if __name__ == '__main__':
     iface = sys.argv[1] if len(sys.argv) > 1 else None

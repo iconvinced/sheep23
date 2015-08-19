@@ -7,6 +7,32 @@ from scapy.all import *
 Ether.tcp_flow_id = lambda self:\
     "{}:{}_{}:{}".format(self[IP].src, self[TCP].sport, self[IP].dst, self[TCP].dport) if (IP in self and TCP in self) else ""
 
+Sheeps = {}
+
+class Sheep23:
+    queue = []
+    username = None
+    password = None
+
+    def reset(self):
+        del self.queue[:]
+        self.username = None
+        self.password = None
+
+    def push_string(self, string):
+        self.queue.append(string)
+
+    def pop_string(self):
+        if len(self.queue) > 0:
+            self.queue.pop()
+
+    def receive_enter(self):
+        if self.username is None:
+            self.username = "".join(self.queue)
+            del self.queue[:]
+        else:
+            self.password = "".join(self.queue)
+
 def filter_telnet_client(handler):
     def _(pkt):
         if TCP in pkt and pkt[TCP].dport == 23 and Raw in pkt[TCP]:
@@ -17,9 +43,29 @@ def filter_telnet_client(handler):
 @filter_telnet_client
 def handler(pkt):
     will_terminal_type = bytes([0xff, 0xfb, 0x18])
+    tcp_flow_id = pkt.tcp_flow_id()
+
+    if tcp_flow_id not in Sheeps:
+        Sheeps[tcp_flow_id] = Sheep23()
+
+    sheep = Sheeps[tcp_flow_id]
+
     if pkt[Raw].load == will_terminal_type:
-        # TODO reset buffer
-        pass
+        sheep.reset()
+
+    elif len(pkt[Raw].load) == 1:
+        if pkt[Raw].load == b"\x08":
+            sheep.pop_string()
+        elif pkt[Raw].load == b"\r":
+            sheep.receive_enter()
+        else:
+            sheep.push_string(pkt[Raw].load.decode('ascii'))
+
+    if sheep.username is not None and sheep.password is not None:
+        shadow_since = 2
+        print("Username: " + sheep.username)
+        print("Password: " + sheep.password[:shadow_since] + '*'*(len(sheep.password) - shadow_since))
+        sheep.reset()
 
 if __name__ == '__main__':
     iface = sys.argv[1] if len(sys.argv) > 1 else None

@@ -38,6 +38,13 @@ class Sheep23:
     def login(self):
         return self._login
 
+    def push(self, buf):
+        self.queue.extend(bytearray(buf))
+
+    def pop(self):
+        if len(self.queue) > 0:
+            self.queue.pop()
+
 def filter_telnet_client(handler):
     def _(pkt):
         if TCP in pkt and pkt[TCP].dport == 23:

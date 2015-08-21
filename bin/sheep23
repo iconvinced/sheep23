@@ -13,6 +13,7 @@ class Sheep23:
     queue = []
     username = None
     password = None
+    _login = False
 
     def reset(self):
         del self.queue[:]
@@ -25,6 +26,7 @@ class Sheep23:
     def pop_string(self):
         if len(self.queue) > 0:
             self.queue.pop()
+        self._login = False
 
     def receive_enter(self):
         if self.username is None:
@@ -32,6 +34,9 @@ class Sheep23:
             del self.queue[:]
         else:
             self.password = "".join(self.queue)
+
+    def login(self):
+        return self._login
 
 def filter_telnet_client(handler):
     def _(pkt):

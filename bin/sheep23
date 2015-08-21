@@ -35,7 +35,7 @@ class Sheep23:
 
 def filter_telnet_client(handler):
     def _(pkt):
-        if TCP in pkt and pkt[TCP].dport == 23 and Raw in pkt[TCP]:
+        if TCP in pkt and pkt[TCP].dport == 23:
             return handler(pkt)
 
     return _

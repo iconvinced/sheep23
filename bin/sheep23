@@ -10,7 +10,7 @@ Ether.tcp_flow_id = lambda self:\
 Sheeps = {}
 
 class Sheep23:
-    queue = []
+    queue = bytearray()
     username = None
     password = None
     _login = False
@@ -19,21 +19,23 @@ class Sheep23:
         del self.queue[:]
         self.username = None
         self.password = None
-
-    def push_string(self, string):
-        self.queue.append(string)
-
-    def pop_string(self):
-        if len(self.queue) > 0:
-            self.queue.pop()
         self._login = False
 
     def receive_enter(self):
-        if self.username is None:
-            self.username = "".join(self.queue)
+        username, password = None, None
+
+        if self._login:
+            pass
+        elif self.username is None:
+            self.username = "".join(self.queue.decode('ascii'))
             del self.queue[:]
         else:
-            self.password = "".join(self.queue)
+            self.password = "".join(self.queue.decode('ascii'))
+            self._login = True
+            username, password = self.username, self.password
+
+        return username, password
+
 
     def login(self):
         return self._login
@@ -54,30 +56,34 @@ def filter_telnet_client(handler):
 
 @filter_telnet_client
 def handler(pkt):
-    will_terminal_type = bytes([0xff, 0xfb, 0x18])
     tcp_flow_id = pkt.tcp_flow_id()
-
     if tcp_flow_id not in Sheeps:
         Sheeps[tcp_flow_id] = Sheep23()
 
     sheep = Sheeps[tcp_flow_id]
 
-    if pkt[Raw].load == will_terminal_type:
+    if pkt[TCP].flags & 0x02: # has SYN
         sheep.reset()
 
-    elif len(pkt[Raw].load) == 1:
-        if pkt[Raw].load == b"\x08":
-            sheep.pop_string()
-        elif pkt[Raw].load == b"\r":
-            sheep.receive_enter()
-        else:
-            sheep.push_string(pkt[Raw].load.decode('ascii'))
+    elif Raw not in pkt:
+        return
 
-    if sheep.username is not None and sheep.password is not None:
-        shadow_since = 2
-        print("Username: " + sheep.username)
-        print("Password: " + sheep.password[:shadow_since] + '*'*(len(sheep.password) - shadow_since))
+    elif pkt[Raw].load[:3] == bytes([0xff, 0xfb, 0x18]): # WILL TERMIANL TYPE
         sheep.reset()
+
+    elif pkt[Raw].load[:3] == bytes([0xff, 0xfa, 0x18]): # SB TERMINAL-TYPE
+        pass
+
+    elif pkt[Raw].load == b"\r":
+        username, password = sheep.receive_enter()
+
+        if username and password:
+            shadow_since = 2
+            print("Username: " + username)
+            print("Password: " + password[:shadow_since] + '*'*(len(password) - shadow_since))
+
+    elif not sheep.login():
+        sheep.push(pkt[Raw].load)
 
 if __name__ == '__main__':
     iface = sys.argv[1] if len(sys.argv) > 1 else None

@@ -14,12 +14,14 @@ class Sheep23:
     username = None
     password = None
     _login = False
+    _reset = False
 
     def reset(self):
         del self.queue[:]
         self.username = None
         self.password = None
         self._login = False
+        self._reset = True
 
     def receive_enter(self):
         username, password = None, None
@@ -36,7 +38,6 @@ class Sheep23:
 
         return username, password
 
-
     def login(self):
         return self._login
 
@@ -46,6 +47,9 @@ class Sheep23:
     def pop(self):
         if len(self.queue) > 0:
             self.queue.pop()
+
+    def is_reset(self):
+        return self._reset
 
 def filter_telnet_client(handler):
     def _(pkt):
@@ -66,12 +70,15 @@ def handler(pkt):
         sheep.reset()
 
     elif Raw not in pkt:
-        return
+        pass
 
     elif pkt[Raw].load[:3] == bytes([0xff, 0xfb, 0x18]): # WILL TERMIANL TYPE
         sheep.reset()
 
     elif pkt[Raw].load[:3] == bytes([0xff, 0xfa, 0x18]): # SB TERMINAL-TYPE
+        pass
+
+    elif not sheep.is_reset():
         pass
 
     elif pkt[Raw].load == b"\r":

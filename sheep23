@@ -3,7 +3,6 @@
 
 import sys
 from scapy.all import *
-from pprint import pprint
 
 Ether.tcpFlowId = lambda self:\
     "{}:{}_{}:{}".format(self[IP].src, self[TCP].sport, self[IP].dst, self[TCP].dport) if (IP in self and TCP in self) else ""

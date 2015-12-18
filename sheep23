@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
+import collections
 import sys
 from scapy.all import *
 
 Ether.tcpFlowId = lambda self:\
     "{}:{}_{}:{}".format(self[IP].src, self[TCP].sport, self[IP].dst, self[TCP].dport) if (IP in self and TCP in self) else ""
 
-Sheeps = None
-
 class Sheep:
     callback = None
 
-    def __init__(self, id):
-        self.id = id
+    def __init__(self):
+        self.ip = self.username = self.password = ""
         self.buffer = bytearray()
-        self.username = self.password = ""
         self.state = "init"
 
     def push(self, buf):
@@ -45,14 +43,6 @@ class Sheep:
             else:
                 self.buffer.append(bit)
 
-class Sheeps:
-    collection = {}
-
-    def find(self, id):
-        if id not in self.collection.keys():
-            self.collection[id] = Sheep(id)
-        return self.collection[id]
-
 def callback(username, password):
     shadow_since = 2
     print("Username: " + username)
@@ -66,11 +56,14 @@ def filter_telnet_client(handler):
 
 @filter_telnet_client
 def handler(pkt):
-    sheep = Sheeps.find(pkt.tcpFlowId())
+    try: handler.Sheeps
+    except: handler.Sheeps = collections.defaultdict(Sheep)
+
+    sheep = handler.Sheeps[pkt.tcpFlowId()]
+    sheep.ip = pkt[IP].src
     sheep.callback = callback
     sheep.push(pkt[Raw].load)
 
 if __name__ == '__main__':
     iface = sys.argv[1] if len(sys.argv) > 1 else None
-    Sheeps = Sheeps()
     sniff(iface=iface, prn=handler)

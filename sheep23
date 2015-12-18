@@ -3,95 +3,85 @@
 
 import sys
 from scapy.all import *
+from pprint import pprint
 
-Ether.tcp_flow_id = lambda self:\
+Ether.tcpFlowId = lambda self:\
     "{}:{}_{}:{}".format(self[IP].src, self[TCP].sport, self[IP].dst, self[TCP].dport) if (IP in self and TCP in self) else ""
 
-Sheeps = {}
+Sheeps = None
 
-class Sheep23:
-    queue = bytearray()
-    username = None
-    password = None
-    _login = False
-    _reset = False
+class Sheep:
+    callback = None
+
+    def __init__(self, id):
+        self.id = id
+        self.reset()
 
     def reset(self):
-        del self.queue[:]
-        self.username = None
-        self.password = None
-        self._login = False
-        self._reset = True
+        self.buffer = bytearray()
+        self.username = self.password = ""
+        self.state = "init"
 
-    def receive_enter(self):
-        username, password = None, None
-
-        if self._login:
-            pass
-        elif self.username is None:
-            self.username = "".join(self.queue.decode('ascii'))
-            del self.queue[:]
-        else:
-            self.password = "".join(self.queue.decode('ascii'))
-            self._login = True
-            username, password = self.username, self.password
-
-        return username, password
-
-    def login(self):
-        return self._login
+    def resetBuf():
+        del self.buffer[:]
 
     def push(self, buf):
-        self.queue.extend(bytearray(buf))
+        if buf[0] == 0xff: # telnet protocol-used packets
+            self.state = "connected"
+            return
 
-    def pop(self):
-        if len(self.queue) > 0:
-            self.queue.pop()
+        if self.state not in ["connected", "username-got"]:
+            return
 
-    def is_reset(self):
-        return self._reset
+        for bit in buf:
+            if bit == 0x08: # backspace
+                if len(self.buffer) > 0:
+                    self.buffer.pop()
+            elif bit == 0x0D: # enter
+                if self.state == "connected":
+                    if len(self.buffer) > 0:
+                        self.username = self.buffer.decode('ascii')
+                        self.state = "username-got"
+                        self.buffer = bytearray()
+                elif self.state == "username-got":
+                    if len(self.buffer) > 0:
+                        self.password = self.buffer.decode('ascii')
+                    if self.callback:
+                        self.callback(self.username, self.password)
+                    self.state = "password-got"
+            else:
+                self.buffer.append(bit)
+
+class Sheeps:
+    collection = {}
+
+    def find(self, id):
+        if id not in self.collection.keys():
+            self.collection[id] = Sheep(id)
+
+        return self.collection[id]
+
+def callback(username, password):
+    shadow_since = 2
+    print("Username: " + username)
+    print("Password: " + password[:shadow_since] + '*'*(len(password) - shadow_since))
 
 def filter_telnet_client(handler):
     def _(pkt):
         if TCP in pkt and pkt[TCP].dport == 23:
             return handler(pkt)
-
     return _
 
 @filter_telnet_client
 def handler(pkt):
-    tcp_flow_id = pkt.tcp_flow_id()
-    if tcp_flow_id not in Sheeps:
-        Sheeps[tcp_flow_id] = Sheep23()
+    if Raw not in pkt:
+        return
 
-    sheep = Sheeps[tcp_flow_id]
-
-    if pkt[TCP].flags & 0x02: # has SYN
-        sheep.reset()
-
-    elif Raw not in pkt:
-        pass
-
-    elif pkt[Raw].load[:3] == bytes([0xff, 0xfb, 0x18]): # WILL TERMIANL TYPE
-        sheep.reset()
-
-    elif pkt[Raw].load[:3] == bytes([0xff, 0xfa, 0x18]): # SB TERMINAL-TYPE
-        pass
-
-    elif not sheep.is_reset():
-        pass
-
-    elif pkt[Raw].load == b"\r":
-        username, password = sheep.receive_enter()
-
-        if username and password:
-            shadow_since = 2
-            print("Username: " + username)
-            print("Password: " + password[:shadow_since] + '*'*(len(password) - shadow_since))
-
-    elif not sheep.login():
-        sheep.push(pkt[Raw].load)
+    sheep = Sheeps.find(pkt.tcpFlowId())
+    sheep.callback = callback
+    sheep.push(pkt[Raw].load)
 
 if __name__ == '__main__':
     iface = sys.argv[1] if len(sys.argv) > 1 else None
+    Sheeps = Sheeps()
     sniff(iface=iface, prn=handler)

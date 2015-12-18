@@ -55,7 +55,6 @@ class Sheeps:
     def find(self, id):
         if id not in self.collection.keys():
             self.collection[id] = Sheep(id)
-
         return self.collection[id]
 
 def callback(username, password):
@@ -65,15 +64,12 @@ def callback(username, password):
 
 def filter_telnet_client(handler):
     def _(pkt):
-        if TCP in pkt and pkt[TCP].dport == 23:
+        if (TCP in pkt) and (pkt[TCP].dport == 23) and (Raw in pkt):
             return handler(pkt)
     return _
 
 @filter_telnet_client
 def handler(pkt):
-    if Raw not in pkt:
-        return
-
     sheep = Sheeps.find(pkt.tcpFlowId())
     sheep.callback = callback
     sheep.push(pkt[Raw].load)

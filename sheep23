@@ -14,9 +14,6 @@ class Sheep:
 
     def __init__(self, id):
         self.id = id
-        self.reset()
-
-    def reset(self):
         self.buffer = bytearray()
         self.username = self.password = ""
         self.state = "init"

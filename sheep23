@@ -22,9 +22,6 @@ class Sheep:
         self.username = self.password = ""
         self.state = "init"
 
-    def resetBuf():
-        del self.buffer[:]
-
     def push(self, buf):
         if buf[0] == 0xff: # telnet protocol-used packets
             self.state = "connected"

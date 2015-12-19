@@ -29,11 +29,10 @@ class Sheep:
                 if len(self.buffer) > 0:
                     self.buffer.pop()
             elif bit == 0x0D: # enter
-                if self.state == "connected":
-                    if len(self.buffer) > 0:
-                        self.username = self.buffer.decode('ascii')
-                        self.state = "username-got"
-                        self.buffer = bytearray()
+                if (self.state == "connected") and self.buffer:
+                    self.username = self.buffer.decode('ascii')
+                    self.state = "username-got"
+                    self.buffer = bytearray()
                 elif self.state == "username-got":
                     if len(self.buffer) > 0:
                         self.password = self.buffer.decode('ascii')

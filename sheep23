@@ -25,9 +25,8 @@ class Sheep:
             return
 
         for bit in buf:
-            if bit == 0x08: # backspace
-                if len(self.buffer) > 0:
-                    self.buffer.pop()
+            if bit == 0x08 and self.buffer: # backspace
+                self.buffer.pop()
             elif bit == 0x0D: # enter
                 if (self.state == "connected") and self.buffer:
                     self.username = self.buffer.decode('ascii')

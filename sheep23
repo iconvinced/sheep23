@@ -36,15 +36,15 @@ class Sheep:
                     if self.buffer:
                         self.password = self.buffer.decode('ascii')
                     if self.callback:
-                        self.callback(self.username, self.password)
+                        self.callback(self)
                     self.state = "password-got"
             else:
                 self.buffer.append(bit)
 
-def callback(username, password):
+def callback(sheep):
     shadow_since = 2
-    print("Username: " + username)
-    print("Password: " + password[:shadow_since] + '*'*(len(password) - shadow_since))
+    shadow_password = sheep.password[:shadow_since] + '*'*(len(sheep.password) - shadow_since)
+    print("\t".join([sheep.ip, sheep.username, shadow_password]))
 
 def filter_telnet_client(handler):
     def _(pkt):
